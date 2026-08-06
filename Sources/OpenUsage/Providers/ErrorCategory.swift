@@ -241,3 +241,11 @@ extension AntigravityError: CategorizedError {
         }
     }
 }
+
+extension MuseAuthError: CategorizedError {
+    var errorCategory: ErrorCategory {
+        switch self {
+        case .notLoggedIn: .notLoggedIn
+        }
+    }
+}

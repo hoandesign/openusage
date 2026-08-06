@@ -67,7 +67,11 @@ struct WidgetRegistry: Sendable {
     }
 
     var limitDescriptorsByProvider: [String: [WidgetDescriptor]] {
-        descriptorsByProvider.mapValues { $0.filter { !$0.limitResources.isEmpty } }
+        // Drop providers with no limit resources (spend/history-only providers like Muse).
+        Dictionary(uniqueKeysWithValues: descriptorsByProvider.compactMap { id, descriptors in
+            let limited = descriptors.filter { !$0.limitResources.isEmpty }
+            return limited.isEmpty ? nil : (id, limited)
+        })
     }
 
     var historyDescriptorsByProvider: [String: UsageHistoryDescriptor] {

@@ -15,6 +15,12 @@ final class ProviderMarksTests: XCTestCase {
         XCTAssertFalse(mark?.path.isEmpty ?? true, "Devin mark must carry SVG path data")
     }
 
+    func testMuseResolvesToVectorMark() {
+        let mark = ProviderMarks.mark(for: "muse")
+        XCTAssertNotNil(mark, "Muse must load a real vector mark instead of the bolt.fill fallback")
+        XCTAssertFalse(mark?.path.isEmpty ?? true, "Muse mark must carry SVG path data")
+    }
+
     func testStandardProviderMarksLoad() {
         for id in ["claude", "codex", "cursor"] {
             let mark = ProviderMarks.mark(for: id)

@@ -26,6 +26,8 @@ enum DefaultLayout {
         "grok.weekly", "grok.trend",
         "grok.payAsYouGo", "grok.today", "grok.yesterday", "grok.last30",
 
+        "muse.trend", "muse.today", "muse.yesterday", "muse.last30",
+
         "opencode.session", "opencode.weekly", "opencode.monthly", "opencode.trend",
         "opencode.today", "opencode.yesterday", "opencode.last30",
 
@@ -112,6 +114,7 @@ enum DefaultLayout {
         "copilot.orgCredits", "copilot.orgSpend", "copilot.chat", "copilot.completions",
         "devin.extra",
         "grok.payAsYouGo", "grok.today", "grok.yesterday", "grok.last30",
+        "muse.today", "muse.yesterday", "muse.last30",
         // OpenCode: the three Go caps (Session/Weekly/Monthly) and Usage Trend stay above the fold —
         // matching every other provider — with the spend tiles (Today/Yesterday/Last 30 Days) below.
         "opencode.today", "opencode.yesterday", "opencode.last30",
