@@ -98,10 +98,10 @@ final class MuseProviderTests: XCTestCase {
 
         let snapshot = await provider.refresh()
 
-        // Today: 1M input @ $1.25. Yesterday: 1M output @ $4.25.
+        // Today (contributor): 1M input @ $0.10. Yesterday (standard): 1M output @ $4.25.
         XCTAssertEqual(
             values(snapshot.lines, "Today"),
-            [MetricValue(number: 1.25, kind: .dollars, estimated: true), MetricValue(number: 1_000_000, kind: .count, label: "tokens")]
+            [MetricValue(number: 0.10, kind: .dollars, estimated: true), MetricValue(number: 1_000_000, kind: .count, label: "tokens")]
         )
         XCTAssertEqual(
             values(snapshot.lines, "Yesterday"),
@@ -109,7 +109,7 @@ final class MuseProviderTests: XCTestCase {
         )
         XCTAssertEqual(
             values(snapshot.lines, "Last 30 Days"),
-            [MetricValue(number: 5.50, kind: .dollars, estimated: true), MetricValue(number: 2_000_000, kind: .count, label: "tokens")]
+            [MetricValue(number: 4.35, kind: .dollars, estimated: true), MetricValue(number: 2_000_000, kind: .count, label: "tokens")]
         )
 
         guard case .chart(_, let points, let note) = snapshot.lines.first(where: { $0.label == "Usage Trend" }) else {

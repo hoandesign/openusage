@@ -30,7 +30,7 @@ The Muse card's expander includes:
 
 ## The spend tiles
 
-Today / Yesterday / Last 30 Days are computed **locally** from `~/.local/share/muse/sessions/**/session.jsonl`. Each `model_completed` event contributes `input_tokens + output_tokens + reasoning_tokens` (cached input is a subset of input, not added again) bucketed by local calendar day. Cost is estimated via the shared [model pricing](../pricing.md) (`muse-spark` models). Unpriced models are excluded from the totals and surface only as a warning triangle, matching other spend providers. The same daily series feeds the Usage Trend chart.
+Today / Yesterday / Last 30 Days are computed **locally** from `~/.local/share/muse/sessions/**/session.jsonl`. Each `model_completed` event contributes `input_tokens + output_tokens + reasoning_tokens` (cached input is a subset of input, not added again) bucketed by local calendar day. Cost is estimated via the shared [model pricing](../pricing.md) using Meta's published tiers: **Standard** (`muse-spark-1.1` / `muse-spark-1.2` at $1.25 / $0.15 / $4.25 per 1M) and **Contributor** (`muse-spark-*-contributor` at $0.10 / $0.002 / $0.20 per 1M). Unpriced models are excluded from the totals and surface only as a warning triangle, matching other spend providers. The same daily series feeds the Usage Trend chart.
 
 No log data leaves your Mac. A period with no recorded usage reads "No data" rather than "$0.00 · 0 tokens", matching every other spend-tracking provider.
 

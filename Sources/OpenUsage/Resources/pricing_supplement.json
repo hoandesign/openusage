@@ -1,6 +1,6 @@
 {
   "$comment": "OpenUsage pricing supplement. Prices Cursor-native models that no public catalog carries, supplies fast-variant multipliers the catalogs omit, and maps provider log/CSV model slugs to canonical pricing keys (LiteLLM keys, models.dev ids, or entries in this file). Cursor Router rows name the routed model in prose instead of a slug ('Opus 5 (Auto Balanced)'), so those labels get alias rules too. Published to gh-pages by .github/workflows/pricing-supplement.yml on every change, so installed apps pick edits up within about an hour - no release needed. Rates are USD per million tokens. Sources: https://cursor.com/docs/models-and-pricing.md for Cursor-native entries; https://developers.openai.com/api/docs/models/daybreak-blue-latest and https://developers.openai.com/api/docs/pricing for Daybreak aliases and rates.",
-  "updated_at": "2026-08-15T00:00:00Z",
+  "updated_at": "2026-08-15T13:06:52Z",
   "pricing": {
     "auto": {
       "input_per_million": 1.25,
@@ -159,11 +159,18 @@
       "output_per_million": 3.75
     },
     "muse-spark": {
-      "$comment": "Meta Model API Muse Spark list rates (input / cached input / output). Cache write defaults to input. Aliases cover 1.1 and 1.2 contributor CLI slugs.",
+      "$comment": "Meta Model API Muse Spark Standard tier (muse-spark-1.1 / muse-spark-1.2). Cache write unpublished; defaults to input. Source: https://dev.meta.ai/docs/pricing-rate-limits/",
       "input_per_million": 1.25,
       "cache_write_per_million": 1.25,
       "cache_read_per_million": 0.15,
       "output_per_million": 4.25
+    },
+    "muse-spark-contributor": {
+      "$comment": "Meta Model API Muse Spark Contributor tier (muse-spark-1.2-contributor): discounted rates in exchange for training on prompts/completions. Source: https://dev.meta.ai/docs/pricing-rate-limits/",
+      "input_per_million": 0.1,
+      "cache_write_per_million": 0.1,
+      "cache_read_per_million": 0.002,
+      "output_per_million": 0.2
     }
   },
   "fast_multipliers": {
@@ -614,7 +621,11 @@
       "canonical": "kimi-k3"
     },
     {
-      "pattern": "^muse-spark(?:-\\d+(?:\\.\\d+)?)?(?:-contributor)?$",
+      "pattern": "^muse-spark(?:-\\d+(?:\\.\\d+)?)?-contributor$",
+      "canonical": "muse-spark-contributor"
+    },
+    {
+      "pattern": "^muse-spark(?:-\\d+(?:\\.\\d+)?)?$",
       "canonical": "muse-spark"
     }
   ]

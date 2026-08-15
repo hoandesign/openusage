@@ -4,8 +4,8 @@ import XCTest
 final class MuseLogUsageScannerTests: XCTestCase {
     private let since = OpenUsageISO8601.date(from: "2026-06-01T00:00:00.000Z")!
 
-    func testPricesModelCompletedAndAliasesContributorSlug() {
-        // muse-spark: 1M input @ $1.25 + 1M output @ $4.25 = $5.50
+    func testPricesContributorSlugAtContributorTier() {
+        // muse-spark-1.2-contributor: 1M input @ $0.10 + 1M output @ $0.20 = $0.30
         let log = MuseLogFixture.modelCompleted(
             recordedAt: "2026-06-10T10:00:00.000Z",
             model: "muse-spark-1.2-contributor",
@@ -17,15 +17,29 @@ final class MuseLogUsageScannerTests: XCTestCase {
 
         let day = usage.series.daily.first { $0.date == localDay("2026-06-10T10:00:00.000Z") }
         XCTAssertEqual(day?.totalTokens, 2_000_000)
-        XCTAssertEqual(day?.costUSD ?? 0, 5.50, accuracy: 0.0001)
+        XCTAssertEqual(day?.costUSD ?? 0, 0.30, accuracy: 0.0001)
         XCTAssertEqual(
             usage.modelUsage?.daily.first { $0.date == day?.date }?.models.map(\.model),
             ["muse-spark-1.2-contributor"]
         )
     }
 
+    func testPricesStandardSlugAtStandardTiers() {
+        // muse-spark-1.2 (no contributor): 1M input @ $1.25 + 1M output @ $4.25 = $5.50
+        let log = MuseLogFixture.modelCompleted(
+            recordedAt: "2026-06-10T10:00:00.000Z",
+            model: "muse-spark-1.2",
+            input: 1_000_000,
+            output: 1_000_000
+        )
+
+        let usage = MuseLogUsageScanner.parse(log, since: since, pricing: TestPricing.bundled)
+
+        XCTAssertEqual(usage.series.daily.first?.costUSD ?? 0, 5.50, accuracy: 0.0001)
+    }
+
     func testCachedTokensAreSubsetOfInputNotDoubleCounted() {
-        // 800k of 1M input are cache reads: 200k @ $1.25/M + 800k @ $0.15/M = $0.37
+        // Contributor: 800k of 1M input are cache reads → 200k @ $0.10/M + 800k @ $0.002/M = $0.0216
         let log = MuseLogFixture.modelCompleted(
             recordedAt: "2026-06-12T09:00:00.000Z",
             model: "muse-spark-1.2-contributor",
@@ -38,11 +52,11 @@ final class MuseLogUsageScannerTests: XCTestCase {
 
         let day = usage.series.daily.first
         XCTAssertEqual(day?.totalTokens, 1_000_000, "cached tokens must not inflate the total")
-        XCTAssertEqual(day?.costUSD ?? 0, 0.37, accuracy: 0.0001)
+        XCTAssertEqual(day?.costUSD ?? 0, 0.0216, accuracy: 0.0001)
     }
 
     func testReasoningTokensCountTowardOutputCostAndTotal() {
-        // 1M reasoning billed at output rate → $4.25; total tokens = input 0 + output 0 + reasoning 1M
+        // Standard: 1M reasoning billed at output rate → $4.25
         let log = MuseLogFixture.modelCompleted(
             recordedAt: "2026-06-12T09:00:00.000Z",
             model: "muse-spark",
