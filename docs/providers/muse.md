@@ -25,7 +25,7 @@ No extra login is required beyond what Muse already uses. If none of those exist
 
 The Muse card's expander includes:
 
-- **Usage** — [dev.meta.ai/usage](https://dev.meta.ai/usage)
+- **Usage** — [dev.meta.ai/usage](https://dev.meta.ai/usage/) opened on the same inclusive last-30-days window as the spend tiles (`start_date` / `end_date`). Optional: set `META_PROJECT_ID` and `META_TEAM_ID` in the environment OpenUsage inherits so the console lands on your Meta project/team (copy them from the usage page URL in the browser).
 - **Dashboard** — [dev.meta.ai](https://dev.meta.ai/)
 
 ## The spend tiles

@@ -2,15 +2,25 @@ import Foundation
 
 @MainActor
 final class MuseProvider: ProviderRuntime {
-    let provider = Provider(
-        id: "muse",
-        displayName: "Muse",
-        icon: .providerMark("muse"),
-        links: [
-            .init(label: "Usage", url: "https://dev.meta.ai/usage"),
-            .init(label: "Dashboard", url: "https://dev.meta.ai/")
-        ]
-    )
+    /// Rebuilt on each access so the Usage link's last-30-days window stays current.
+    var provider: Provider {
+        Provider(
+            id: "muse",
+            displayName: "Muse",
+            icon: .providerMark("muse"),
+            links: [
+                .init(
+                    label: "Usage",
+                    url: MuseUsageURL.make(
+                        now: now(),
+                        projectID: authStore.environment.value(for: "META_PROJECT_ID"),
+                        teamID: authStore.environment.value(for: "META_TEAM_ID")
+                    )
+                ),
+                .init(label: "Dashboard", url: "https://dev.meta.ai/")
+            ]
+        )
+    }
 
     let authStore: MuseAuthStore
     let logUsageScanner: MuseLogUsageScanner

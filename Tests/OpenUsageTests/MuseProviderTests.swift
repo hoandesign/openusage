@@ -127,6 +127,25 @@ final class MuseProviderTests: XCTestCase {
         XCTAssertEqual(ids, ["muse.trend", "muse.today", "muse.yesterday", "muse.last30"])
     }
 
+    func testUsageLinkUsesLast30DaysAndOptionalProjectTeamFromEnv() {
+        let now = OpenUsageISO8601.date(from: "2026-08-15T12:00:00.000Z")!
+        let env = FakeEnvironment([
+            "META_PROJECT_ID": "2165947557682142",
+            "META_TEAM_ID": "1430796172289191"
+        ])
+        let provider = MuseProvider(
+            authStore: MuseAuthStore(files: FakeFiles(), environment: env, homeDirectory: { URL(fileURLWithPath: "/home") }),
+            now: { now },
+            pricing: { TestPricing.bundled }
+        )
+
+        XCTAssertEqual(
+            provider.provider.links.first { $0.label == "Usage" }?.url,
+            "https://dev.meta.ai/usage/?start_date=2026-07-17&end_date=2026-08-15&project_id=2165947557682142&team_id=1430796172289191"
+        )
+        XCTAssertEqual(provider.provider.links.first { $0.label == "Dashboard" }?.url, "https://dev.meta.ai/")
+    }
+
     private func values(_ lines: [MetricLine], _ label: String) -> [MetricValue]? {
         guard case .values(_, let values, _, _, _, _) = lines.first(where: { $0.label == label }) else { return nil }
         return values
