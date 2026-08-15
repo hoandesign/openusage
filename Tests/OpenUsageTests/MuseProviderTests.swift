@@ -141,9 +141,20 @@ final class MuseProviderTests: XCTestCase {
 
         XCTAssertEqual(
             provider.provider.links.first { $0.label == "Usage" }?.url,
-            "https://dev.meta.ai/usage/?start_date=2026-07-17&end_date=2026-08-15&project_id=2165947557682142&team_id=1430796172289191"
+            "https://dev.meta.ai/usage/?end_date=2026-08-15&project_id=2165947557682142&start_date=2026-07-17&team_id=1430796172289191"
         )
         XCTAssertEqual(provider.provider.links.first { $0.label == "Dashboard" }?.url, "https://dev.meta.ai/")
+    }
+
+    func testUsageLinkFallsBackToBarePageWithoutProjectTeamIds() {
+        let now = OpenUsageISO8601.date(from: "2026-08-15T12:00:00.000Z")!
+        let provider = MuseProvider(
+            authStore: MuseAuthStore(files: FakeFiles(), environment: FakeEnvironment(), homeDirectory: { URL(fileURLWithPath: "/home") }),
+            now: { now },
+            pricing: { TestPricing.bundled }
+        )
+
+        XCTAssertEqual(provider.provider.links.first { $0.label == "Usage" }?.url, "https://dev.meta.ai/usage")
     }
 
     private func values(_ lines: [MetricLine], _ label: String) -> [MetricValue]? {

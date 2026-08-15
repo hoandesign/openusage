@@ -4,7 +4,12 @@ import Foundation
 final class MuseProvider: ProviderRuntime {
     /// Rebuilt on each access so the Usage link's last-30-days window stays current.
     var provider: Provider {
-        Provider(
+        let console = MuseConsoleContext.resolve(
+            environment: authStore.environment,
+            files: authStore.files,
+            homeDirectory: authStore.homeDirectory
+        )
+        return Provider(
             id: "muse",
             displayName: "Muse",
             icon: .providerMark("muse"),
@@ -13,8 +18,8 @@ final class MuseProvider: ProviderRuntime {
                     label: "Usage",
                     url: MuseUsageURL.make(
                         now: now(),
-                        projectID: authStore.environment.value(for: "META_PROJECT_ID"),
-                        teamID: authStore.environment.value(for: "META_TEAM_ID")
+                        projectID: console.projectID,
+                        teamID: console.teamID
                     )
                 ),
                 .init(label: "Dashboard", url: "https://dev.meta.ai/")

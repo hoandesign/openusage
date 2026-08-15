@@ -25,7 +25,7 @@ No extra login is required beyond what Muse already uses. If none of those exist
 
 The Muse card's expander includes:
 
-- **Usage** — [dev.meta.ai/usage](https://dev.meta.ai/usage/) opened on the same inclusive last-30-days window as the spend tiles (`start_date` / `end_date`). Optional: set `META_PROJECT_ID` and `META_TEAM_ID` in the environment OpenUsage inherits so the console lands on your Meta project/team (copy them from the usage page URL in the browser).
+- **Usage** — [dev.meta.ai/usage](https://dev.meta.ai/usage). When OpenUsage knows your Meta `project_id` and `team_id`, the link opens the same inclusive last-30-days window as the spend tiles (query order matches the console: `end_date`, `project_id`, `start_date`, `team_id`). Without both ids the link stays bare — Meta's SPA otherwise injects ids and rewrites away the date window. Supply ids via `META_PROJECT_ID` / `META_TEAM_ID`, `~/Library/Application Support/OpenUsage/muse-usage-context.json`, or `project_id` / `team_id` keys in `~/.config/muse/settings.json` (copy them from the usage page URL in the browser).
 - **Dashboard** — [dev.meta.ai](https://dev.meta.ai/)
 
 ## The spend tiles
