@@ -36,19 +36,19 @@ final class ModelPricingTests: XCTestCase {
 
     // MARK: - Resolution
 
-    func testExactMatchWins() throws {
-        let pricing = try makePricing(primary: ["gpt-5.5": rates(5, 30)])
-        XCTAssertEqual(pricing.resolve(model: "gpt-5.5")?.inputPerMillion, 5)
-    }
+    func testModelResolutionNormalizesDatesProviderPrefixesAndSeparators() throws {
+        let scenarios: [(catalogKey: String, model: String, expected: Double)] = [
+            ("gpt-5.5", "gpt-5.5", 5),
+            ("claude-sonnet-4-20250514", "claude-sonnet-4", 3),
+            ("claude-sonnet-4-5", "claude-sonnet-4-5-20250929", 3),
+            ("xai/grok-4.3", "grok-4.3", 1.25),
+            ("xai/grok-4.3", "grok-4-3", 1.25)
+        ]
 
-    func testDateSuffixFuzzyMatch() throws {
-        let pricing = try makePricing(primary: ["claude-sonnet-4-20250514": rates(3, 15)])
-        XCTAssertEqual(pricing.resolve(model: "claude-sonnet-4")?.inputPerMillion, 3)
-    }
-
-    func testModelWithDateSuffixResolvesUndatedKey() throws {
-        let pricing = try makePricing(primary: ["claude-sonnet-4-5": rates(3, 15)])
-        XCTAssertEqual(pricing.resolve(model: "claude-sonnet-4-5-20250929")?.inputPerMillion, 3)
+        for scenario in scenarios {
+            let pricing = try makePricing(primary: [scenario.catalogKey: rates(scenario.expected, 15)])
+            XCTAssertEqual(pricing.resolve(model: scenario.model)?.inputPerMillion, scenario.expected, scenario.model)
+        }
     }
 
     func testNumericVersionsDoNotConflate() throws {
@@ -57,17 +57,6 @@ final class ModelPricingTests: XCTestCase {
         XCTAssertNil(pricing.resolve(model: "claude-sonnet-4"))
         let reverse = try makePricing(primary: ["claude-sonnet-4": rates(1, 2)])
         XCTAssertNil(reverse.resolve(model: "claude-sonnet-4-5"))
-    }
-
-    func testProviderPrefixFuzzyMatch() throws {
-        let pricing = try makePricing(primary: ["xai/grok-4.3": rates(1.25, 2.5)])
-        XCTAssertEqual(pricing.resolve(model: "grok-4.3")?.inputPerMillion, 1.25)
-    }
-
-    func testSeparatorNormalizationMatch() throws {
-        // Log slug grok-4-3 (dashes) matches catalog key xai/grok-4.3 (dot).
-        let pricing = try makePricing(primary: ["xai/grok-4.3": rates(1.25, 2.5)])
-        XCTAssertEqual(pricing.resolve(model: "grok-4-3")?.inputPerMillion, 1.25)
     }
 
     func testLongestKeyPreferred() throws {
@@ -198,6 +187,51 @@ final class ModelPricingTests: XCTestCase {
 
     // MARK: - Cost math
 
+    func testFallbackChoicesUseOnlyListedModelsWithUsableExactPrices() throws {
+        let supplement = """
+        {"pricing": {}, "alias_rules": [],
+         "fallback_models": {"codex": ["gpt-5.6-sol", "missing", "gpt-5.6-sol", "free-model", "gpt-8"]}}
+        """
+        let pricing = try makePricing(
+            supplementJSON: supplement,
+            primary: ["gpt-5.6-sol": rates(5, 30), "free-model": rates(0, 0),
+                      "gpt-8-20260801": rates(1, 2), "unlisted-model": rates(1, 2)]
+        )
+
+        XCTAssertEqual(pricing.fallbackOptions(for: "codex"), [
+            PricingFallbackOption(id: "gpt-5.6-sol", title: "GPT 5.6 Sol")
+        ])
+        XCTAssertTrue(pricing.fallbackOptions(for: "claude").isEmpty)
+        XCTAssertNil(pricing.fallbackRates(model: "unlisted-model", providerID: "codex"))
+        XCTAssertNotNil(pricing.resolve(model: "gpt-8"), "regular fuzzy pricing still works")
+    }
+
+    func testFallbackChoicesPreserveSupplementOrderAndSecondaryPrices() throws {
+        let pricing = try makePricing(
+            supplementJSON: """
+            {"pricing": {}, "alias_rules": [], "fallback_models": {"codex": ["gpt-5.5", "gpt-5.4"]}}
+            """,
+            primary: ["gpt-5.4": rates(2.5, 15)],
+            secondary: ["gpt-5.5": rates(5, 30)]
+        )
+        XCTAssertEqual(pricing.fallbackOptions(for: "codex").map(\.id), ["gpt-5.5", "gpt-5.4"])
+    }
+
+    func testBundledFallbackChoicesHaveExactPricesAndNoDuplicates() {
+        let pricing = TestPricing.bundled
+        let listed = pricing.supplement.fallbackModels["codex"] ?? []
+        XCTAssertFalse(listed.isEmpty)
+        XCTAssertEqual(Set(listed).count, listed.count)
+        XCTAssertEqual(pricing.fallbackOptions(for: "codex").map(\.id), listed)
+    }
+
+    func testSupplementFallbackChoicesPreserveExplicitEmptyLists() {
+        let bundled = PricingSupplement(fallbackModels: ["codex": ["gpt-5.5"]])
+        XCTAssertEqual(PricingSupplement().fillingMissingFallbackModels(from: bundled).fallbackModels, bundled.fallbackModels)
+        let disabled = PricingSupplement(fallbackModels: ["codex": []])
+        XCTAssertEqual(disabled.fillingMissingFallbackModels(from: bundled).fallbackModels["codex"], [])
+    }
+
     func testCostUsesAllTokenBuckets() throws {
         let entry = ModelRates(
             inputPerMillion: 3, outputPerMillion: 15,
@@ -209,12 +243,21 @@ final class ModelPricingTests: XCTestCase {
         XCTAssertEqual(pricing.estimatedCostDollars(model: "claude-sonnet-4-5", tokens: tokens)!, 28.05, accuracy: 0.0001)
     }
 
-    func testCostAbove200kUsesHigherRateForWholeRequest() throws {
+    func testLongContextRatesApplyOnlyWhenPromptExceedsTheThreshold() throws {
         var entry = ModelRates(inputPerMillion: 3, outputPerMillion: 15, cacheWritePerMillion: 3.75, cacheReadPerMillion: 0.3)
         entry.inputAbove200kPerMillion = 6
+        entry.outputAbove200kPerMillion = 22.5
         let pricing = try makePricing(primary: ["claude-sonnet-4-5": entry])
-        let tokens = TokenBreakdown(input: 300_000)
-        XCTAssertEqual(pricing.estimatedCostDollars(model: "claude-sonnet-4-5", tokens: tokens)!, 1.8, accuracy: 0.0001)
+        let scenarios: [(name: String, tokens: TokenBreakdown, expected: Double)] = [
+            ("above threshold", TokenBreakdown(input: 300_000), 1.8),
+            ("exactly at threshold", TokenBreakdown(input: 200_000, output: 10_000), 0.75),
+            ("large output alone", TokenBreakdown(input: 10_000, output: 300_000), 4.53)
+        ]
+
+        for scenario in scenarios {
+            let actual = try XCTUnwrap(pricing.estimatedCostDollars(model: "claude-sonnet-4-5", tokens: scenario.tokens))
+            XCTAssertEqual(actual, scenario.expected, accuracy: 0.0001, scenario.name)
+        }
     }
 
     func testCombinedPromptBucketsSelectLongContextRatesForEveryBucket() throws {
@@ -229,26 +272,6 @@ final class ModelPricingTests: XCTestCase {
         // The 210k prompt selects the higher tier for input, cache, and output alike.
         let expected = 0.6 + 0.45 + 0.03 + 0.45
         XCTAssertEqual(pricing.estimatedCostDollars(model: "claude-sonnet-4-5", tokens: tokens)!, expected, accuracy: 0.0001)
-    }
-
-    func testLargeOutputAloneDoesNotSelectLongContextRates() throws {
-        var entry = ModelRates(inputPerMillion: 3, outputPerMillion: 15, cacheWritePerMillion: 3.75, cacheReadPerMillion: 0.3)
-        entry.inputAbove200kPerMillion = 6
-        entry.outputAbove200kPerMillion = 22.5
-        let pricing = try makePricing(primary: ["claude-sonnet-4-5": entry])
-        let tokens = TokenBreakdown(input: 10_000, output: 300_000)
-
-        XCTAssertEqual(pricing.estimatedCostDollars(model: "claude-sonnet-4-5", tokens: tokens)!, 4.53, accuracy: 0.0001)
-    }
-
-    func testExactly200kPromptKeepsBaseRates() throws {
-        var entry = ModelRates(inputPerMillion: 3, outputPerMillion: 15, cacheWritePerMillion: 3.75, cacheReadPerMillion: 0.3)
-        entry.inputAbove200kPerMillion = 6
-        entry.outputAbove200kPerMillion = 22.5
-        let pricing = try makePricing(primary: ["claude-sonnet-4-5": entry])
-        let tokens = TokenBreakdown(input: 200_000, output: 10_000)
-
-        XCTAssertEqual(pricing.estimatedCostDollars(model: "claude-sonnet-4-5", tokens: tokens)!, 0.75, accuracy: 0.0001)
     }
 
     func testCustomLongContextThresholdUsesWholeRequestRates() {
