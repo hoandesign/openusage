@@ -103,7 +103,7 @@ final class MuseLogUsageScannerTests: XCTestCase {
         let log = [
             MuseLogFixture.modelCompleted(
                 recordedAt: "2026-06-10T10:00:00.000Z",
-                model: "muse-totally-unknown",
+                model: "muse-spark-future",
                 input: 1_000_000
             ),
             MuseLogFixture.modelCompleted(
@@ -117,14 +117,14 @@ final class MuseLogUsageScannerTests: XCTestCase {
         let day = localDay("2026-06-10T10:00:00.000Z")
 
         XCTAssertEqual(usage.series.daily.first?.totalTokens, 500_000)
-        XCTAssertEqual(usage.unknownModelsByDay[day], ["muse-totally-unknown"])
+        XCTAssertEqual(usage.unknownModelsByDay[day], ["muse-spark-future"])
         XCTAssertEqual(usage.modelUsage?.daily.first?.models.map(\.model), ["muse-spark"])
     }
 
     func testUnpricedOnlyDayLeavesSeriesEmptyWithWarning() {
         let log = MuseLogFixture.modelCompleted(
             recordedAt: "2026-06-10T10:00:00.000Z",
-            model: "muse-totally-unknown",
+            model: "muse-spark-future",
             input: 1_000_000
         )
 
@@ -132,7 +132,20 @@ final class MuseLogUsageScannerTests: XCTestCase {
         let day = localDay("2026-06-10T10:00:00.000Z")
 
         XCTAssertTrue(usage.series.daily.isEmpty)
-        XCTAssertEqual(usage.unknownModelsByDay[day], ["muse-totally-unknown"])
+        XCTAssertEqual(usage.unknownModelsByDay[day], ["muse-spark-future"])
+    }
+
+    func testNonMuseSparkModelsAreIgnoredWithoutWarning() {
+        let log = MuseLogFixture.modelCompleted(
+            recordedAt: "2026-06-10T10:00:00.000Z",
+            model: "muse-totally-unknown",
+            input: 1_000_000
+        )
+
+        let usage = MuseLogUsageScanner.parse(log, since: since, pricing: TestPricing.bundled)
+
+        XCTAssertTrue(usage.series.daily.isEmpty)
+        XCTAssertTrue(usage.unknownModelsByDay.isEmpty)
     }
 
     func testMissingModelFallsBackToMuseSpark() {
@@ -150,10 +163,12 @@ final class MuseLogUsageScannerTests: XCTestCase {
 
     func testScanReadsXDGDataHomeSessionsTree() async throws {
         let home = try MuseLogFixture.makeHome(files: [
-            "2026/06/10/sess/session.jsonl": MuseLogFixture.modelCompleted(
-                recordedAt: "2026-06-10T10:00:00.000Z",
-                model: "muse-spark",
-                input: 1_000_000
+            "2026/06/10/sess/session.jsonl": MuseLogFixture.sessionFile(
+                MuseLogFixture.modelCompleted(
+                    recordedAt: "2026-06-10T10:00:00.000Z",
+                    model: "muse-spark",
+                    input: 1_000_000
+                )
             )
         ])
         defer { try? FileManager.default.removeItem(at: home) }
@@ -171,6 +186,77 @@ final class MuseLogUsageScannerTests: XCTestCase {
         )
 
         XCTAssertEqual(usage?.series.daily.first?.totalTokens, 1_000_000)
+    }
+
+    func testScanIgnoresSessionsWithoutMuseCLIMetadata() async throws {
+        let home = try MuseLogFixture.makeHome(files: [
+            "2026/06/10/external/session.jsonl": MuseLogFixture.modelCompleted(
+                recordedAt: "2026-06-10T10:00:00.000Z",
+                model: "muse-spark",
+                input: 1_000_000
+            ),
+            "2026/06/10/muse/session.jsonl": MuseLogFixture.sessionFile(
+                MuseLogFixture.modelCompleted(
+                    recordedAt: "2026-06-10T11:00:00.000Z",
+                    model: "muse-spark-1.2-contributor",
+                    input: 250_000
+                )
+            )
+        ])
+        defer { try? FileManager.default.removeItem(at: home) }
+
+        let scanner = MuseLogUsageScanner(
+            files: LocalTextFileAccessor(),
+            environment: FakeEnvironment(["XDG_DATA_HOME": home.path]),
+            homeDirectory: { URL(fileURLWithPath: "/home/ignored") }
+        )
+
+        let usage = await scanner.scan(
+            daysBack: 30,
+            now: OpenUsageISO8601.date(from: "2026-06-18T00:00:00.000Z")!,
+            pricing: TestPricing.bundled
+        )
+
+        XCTAssertEqual(usage?.series.daily.first?.totalTokens, 250_000)
+    }
+
+    func testScanIncludesSubagentLogsWhenParentSessionQualifies() async throws {
+        let home = try MuseLogFixture.makeHome(files: [
+            "2026/06/10/parent/session.jsonl": MuseLogFixture.sessionFile(""),
+            "2026/06/10/parent/subagent/worker/session.jsonl": MuseLogFixture.modelCompleted(
+                recordedAt: "2026-06-10T12:00:00.000Z",
+                model: "muse-spark-1.2",
+                input: 100_000
+            )
+        ])
+        defer { try? FileManager.default.removeItem(at: home) }
+
+        let scanner = MuseLogUsageScanner(
+            files: LocalTextFileAccessor(),
+            environment: FakeEnvironment(["XDG_DATA_HOME": home.path]),
+            homeDirectory: { URL(fileURLWithPath: "/home/ignored") }
+        )
+
+        let usage = await scanner.scan(
+            daysBack: 30,
+            now: OpenUsageISO8601.date(from: "2026-06-18T00:00:00.000Z")!,
+            pricing: TestPricing.bundled
+        )
+
+        XCTAssertEqual(usage?.series.daily.first?.totalTokens, 100_000)
+    }
+
+    func testParseSkipsNonMuseSparkModels() {
+        let log = MuseLogFixture.modelCompleted(
+            recordedAt: "2026-06-10T10:00:00.000Z",
+            model: "gpt-5.4",
+            input: 1_000_000
+        )
+
+        let usage = MuseLogUsageScanner.parse(log, since: since, pricing: TestPricing.bundled)
+
+        XCTAssertTrue(usage.series.daily.isEmpty)
+        XCTAssertTrue(usage.unknownModelsByDay.isEmpty)
     }
 
     func testScanReturnsNilWhenSessionsMissingOrEmpty() async {
@@ -207,6 +293,35 @@ final class MuseLogUsageScannerTests: XCTestCase {
 enum MuseLogFixture {
     static func micros(_ iso: String) -> Int64 {
         Int64((OpenUsageISO8601.date(from: iso)!.timeIntervalSince1970 * 1_000_000).rounded())
+    }
+
+    static func sessionMetadata(
+        providerID: String = "meta",
+        modelID: String = "muse-spark-1.2-contributor"
+    ) -> String {
+        let object: [String: Any] = [
+            "payload_type": "runtime.session.metadata",
+            "payload": [
+                "kind": "metadata",
+                "record": [
+                    "workspace_root": "/tmp/project",
+                    "provider_id": providerID,
+                    "model_id": modelID,
+                    "build": ["sha": "test", "semver": "0.1.0"],
+                    "tool_surface_version": "2"
+                ]
+            ]
+        ]
+        let data = try! JSONSerialization.data(withJSONObject: object)
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    static func sessionFile(_ body: String) -> String {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return sessionMetadata()
+        }
+        return sessionMetadata() + "\n" + trimmed
     }
 
     static func modelCompleted(

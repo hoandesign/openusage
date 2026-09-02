@@ -50,7 +50,7 @@ final class MuseProvider: ProviderRuntime {
                 .exportingHistory(
                     scope: .machineLocal,
                     estimatedCost: true,
-                    sourceNote: "From your Muse logs (estimated)"
+                    sourceNote: "From Muse CLI session logs on this Mac (estimated)"
                 )
         ] + WidgetDescriptor.spendTiles(provider: provider)
     }
@@ -85,9 +85,9 @@ final class MuseProvider: ProviderRuntime {
             scan.series, to: &lines, now: refreshedAt,
             unknownModelsByDay: scan.unknownModelsByDay,
             modelUsage: scan.modelUsage,
-            modelSourceNote: "From your Muse logs (estimated)"
+            modelSourceNote: "From Muse CLI session logs on this Mac (estimated)"
         )
-        SpendTileMapper.appendUsageTrend(scan.series, to: &lines, now: refreshedAt, note: "From your Muse logs (estimated)")
+        SpendTileMapper.appendUsageTrend(scan.series, to: &lines, now: refreshedAt, note: "From Muse CLI session logs on this Mac (estimated)")
 
         let usageHistory = ProviderUsageHistory(
             series: scan.series,

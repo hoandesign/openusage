@@ -74,16 +74,20 @@ final class MuseProviderTests: XCTestCase {
     func testRefreshAppendsSpendTilesAndTrendFromSessionLogs() async throws {
         let now = OpenUsageISO8601.date(from: "2026-06-18T12:00:00.000Z")!
         let xdg = try MuseLogFixture.makeHome(files: [
-            "2026/06/18/sess/session.jsonl": MuseLogFixture.modelCompleted(
-                recordedAt: "2026-06-18T10:00:00.000Z",
-                model: "muse-spark-1.2-contributor",
-                input: 1_000_000
+            "2026/06/18/sess/session.jsonl": MuseLogFixture.sessionFile(
+                MuseLogFixture.modelCompleted(
+                    recordedAt: "2026-06-18T10:00:00.000Z",
+                    model: "muse-spark-1.2-contributor",
+                    input: 1_000_000
+                )
             ),
-            "2026/06/17/sess/session.jsonl": MuseLogFixture.modelCompleted(
-                recordedAt: "2026-06-17T10:00:00.000Z",
-                model: "muse-spark",
-                input: 0,
-                output: 1_000_000
+            "2026/06/17/sess/session.jsonl": MuseLogFixture.sessionFile(
+                MuseLogFixture.modelCompleted(
+                    recordedAt: "2026-06-17T10:00:00.000Z",
+                    model: "muse-spark",
+                    input: 0,
+                    output: 1_000_000
+                )
             )
         ])
         defer { try? FileManager.default.removeItem(at: xdg) }
@@ -115,7 +119,7 @@ final class MuseProviderTests: XCTestCase {
         guard case .chart(_, let points, let note) = snapshot.lines.first(where: { $0.label == "Usage Trend" }) else {
             return XCTFail("expected a Usage Trend chart line")
         }
-        XCTAssertEqual(note, "From your Muse logs (estimated)")
+        XCTAssertEqual(note, "From Muse CLI session logs on this Mac (estimated)")
         XCTAssertEqual(points.last?.value, 1_000_000)
         XCTAssertEqual(points[points.count - 2].value, 1_000_000)
         XCTAssertNotNil(snapshot.usageHistory)

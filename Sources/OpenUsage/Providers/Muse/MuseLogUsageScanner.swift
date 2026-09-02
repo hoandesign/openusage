@@ -5,7 +5,8 @@ import Foundation
 /// Sessions live under `~/.local/share/muse/sessions/<yyyy>/<mm>/<dd>/<session-id>/session.jsonl`
 /// and also historically under `~/.local/share/muse/sessions/<session-id>/session.jsonl`.
 /// Usage is recorded on `runtime.session` `model_completed` events carrying `usage` token counts
-/// and a `model` slug. (Matching `goal_usage_attribution` rows exist but omit the model id.)
+/// and a `model` slug. Only Muse Spark models (`muse-spark*`) from Muse CLI session logs are
+/// counted — other Meta API clients on dev.meta.ai do not write here.
 /// We aggregate per local calendar day.
 struct MuseLogUsageScanner: Sendable {
     var files: TextFileAccessing
@@ -57,7 +58,8 @@ struct MuseLogUsageScanner: Sendable {
         let url = URL(fileURLWithPath: root)
         return JSONLScanning.jsonlFiles(under: url)
             .filter { $0.path.hasSuffix("session.jsonl") }
-            .map { $0.path }
+            .map(\.path)
+            .filter { MuseSessionFilter.qualifiesSessionFile(at: $0, files: files) }
             .sorted()
     }
 
@@ -115,6 +117,7 @@ struct MuseLogUsageScanner: Sendable {
                 }
                 return "muse-spark"
             }()
+            guard MuseSessionFilter.isMuseSparkModel(model) else { continue }
 
             let breakdown = TokenBreakdown(
                 input: inputNoCache,

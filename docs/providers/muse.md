@@ -9,7 +9,7 @@ Tracks local Muse CLI usage from the session logs Muse writes to `~/.local/share
 | Today / Yesterday / Last 30 Days | Tokens (and estimated cost) computed locally from Muse session logs |
 | Usage Trend | 30-day token chart from the same local history |
 
-Muse is local-only: there is no remote quota API yet. OpenUsage reads the logs the CLI already writes, so the numbers reflect this Mac's Muse usage (not account-wide).
+Muse is local-only: there is no remote quota API yet. OpenUsage reads the Muse CLI session logs this Mac already writes under `~/.local/share/muse/sessions`, so the spend tiles reflect **Muse coding-agent usage on this Mac only** — not other Meta API apps or keys you created on [dev.meta.ai](https://dev.meta.ai/).
 
 ## Where credentials come from
 
@@ -25,12 +25,12 @@ No extra login is required beyond what Muse already uses. If none of those exist
 
 The Muse card's expander includes:
 
-- **Usage** — [dev.meta.ai/usage](https://dev.meta.ai/usage). When OpenUsage knows your Meta `project_id` and `team_id`, the link opens the same inclusive last-30-days window as the spend tiles (query order matches the console: `end_date`, `project_id`, `start_date`, `team_id`). Without both ids the link stays bare — Meta's SPA otherwise injects ids and rewrites away the date window. Supply ids via `META_PROJECT_ID` / `META_TEAM_ID`, `~/Library/Application Support/OpenUsage/muse-usage-context.json`, or `project_id` / `team_id` keys in `~/.config/muse/settings.json` (copy them from the usage page URL in the browser).
+- **Usage** — [dev.meta.ai/usage](https://dev.meta.ai/usage). Opens Meta's account/project console (all API usage for that project, not just Muse CLI). When OpenUsage knows your Meta `project_id` and `team_id`, the link adds the same inclusive last-30-days window as the spend tiles. Without both ids the link stays bare — Meta's SPA otherwise injects ids and rewrites away the date window. The spend tiles above stay Muse-CLI-only.
 - **Dashboard** — [dev.meta.ai](https://dev.meta.ai/)
 
 ## The spend tiles
 
-Today / Yesterday / Last 30 Days are computed **locally** from `~/.local/share/muse/sessions/**/session.jsonl`. Each `model_completed` event contributes `input_tokens + output_tokens + reasoning_tokens` (cached input is a subset of input, not added again) bucketed by local calendar day. Cost is estimated via the shared [model pricing](../pricing.md) using Meta's published tiers: **Standard** (`muse-spark-1.1` / `muse-spark-1.2` at $1.25 / $0.15 / $4.25 per 1M) and **Contributor** (`muse-spark-*-contributor` at $0.10 / $0.002 / $0.20 per 1M). Unpriced models are excluded from the totals and surface only as a warning triangle, matching other spend providers. The same daily series feeds the Usage Trend chart.
+Today / Yesterday / Last 30 Days are computed **locally** from qualified Muse CLI `session.jsonl` files. Each `model_completed` event for a `muse-spark*` model contributes `input_tokens + output_tokens + reasoning_tokens` (cached input is a subset of input, not added again) bucketed by local calendar day. Sessions must carry Muse CLI metadata (`provider_id: meta` with a Muse build stamp); subagent logs count when their parent session qualifies. Other Meta API clients on dev.meta.ai do not write these logs, so their usage is excluded automatically. Cost is estimated via the shared [model pricing](../pricing.md) using Meta's published tiers: **Standard** (`muse-spark-1.1` / `muse-spark-1.2` at $1.25 / $0.15 / $4.25 per 1M) and **Contributor** (`muse-spark-*-contributor` at $0.10 / $0.002 / $0.20 per 1M). Unpriced models are excluded from the totals and surface only as a warning triangle, matching other spend providers. The same daily series feeds the Usage Trend chart.
 
 No log data leaves your Mac. A period with no recorded usage reads "No data" rather than "$0.00 · 0 tokens", matching every other spend-tracking provider.
 
