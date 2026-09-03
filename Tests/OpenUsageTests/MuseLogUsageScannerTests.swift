@@ -5,10 +5,10 @@ final class MuseLogUsageScannerTests: XCTestCase {
     private let since = OpenUsageISO8601.date(from: "2026-06-01T00:00:00.000Z")!
 
     func testPricesContributorSlugAtContributorTier() {
-        // muse-spark-1.2-contributor: 1M input @ $0.10 + 1M output @ $0.20 = $0.30
+        // muse-spark-1.3-contributor: 1M input @ $0.10 + 1M output @ $0.20 = $0.30
         let log = MuseLogFixture.modelCompleted(
             recordedAt: "2026-06-10T10:00:00.000Z",
-            model: "muse-spark-1.2-contributor",
+            model: "muse-spark-1.3-contributor",
             input: 1_000_000,
             output: 1_000_000
         )
@@ -20,15 +20,15 @@ final class MuseLogUsageScannerTests: XCTestCase {
         XCTAssertEqual(day?.costUSD ?? 0, 0.30, accuracy: 0.0001)
         XCTAssertEqual(
             usage.modelUsage?.daily.first { $0.date == day?.date }?.models.map(\.model),
-            ["muse-spark-1.2-contributor"]
+            ["muse-spark-1.3-contributor"]
         )
     }
 
     func testPricesStandardSlugAtStandardTiers() {
-        // muse-spark-1.2 (no contributor): 1M input @ $1.25 + 1M output @ $4.25 = $5.50
+        // muse-spark-1.3 (no contributor): 1M input @ $1.25 + 1M output @ $4.25 = $5.50
         let log = MuseLogFixture.modelCompleted(
             recordedAt: "2026-06-10T10:00:00.000Z",
-            model: "muse-spark-1.2",
+            model: "muse-spark-1.3",
             input: 1_000_000,
             output: 1_000_000
         )
